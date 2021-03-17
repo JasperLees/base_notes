@@ -462,6 +462,90 @@ SELECT * FROM T WHERE name like 'A%' AND age = 10
 
 ### 简述 MySQL 三种日志的使用场景(作用)
 
+- 我们经常讲的 `MySQL`三种日志是：`binlog`、`redo log`、`undo log`，其中`redo log`和`undo log` 是`InnDB`的实现关键
+
+##### `binlog`的使用场景
+
+- `binlog` 是 `MySQL Server` 层维护的一种二进制日志，其主要是用来记录`MySQL`数据更新或潜在发生更新的`SQL`语句，并以"事务"的形式保存在磁盘中；
+- `binlog`的使用场景是：
+  - 主从复制：`MySQL` 复制是 `Master`端开启`binlog`，`Master`把它的二进制日志传递给`Slaves`，并在`Slaves`端回放来达到`Master-Slave`数据一致的目的
+  - 数据恢复：通过`mysqlbinlog` 工具恢复数据
+  - 增量备份：`binlog` 是通过追加的方式进行写入的，可以通过 `max_binlog_size`参数设置每个`binlog`文件的大小，当文件大小到达给定值后，会生成新的文件来保存日志；
+
+#### `redo log` 的使用场景
+
+- 在 `InnoDB`中，数据一致性由`redo log`来保证，使用的是`WAL(Write-Ahead Logging)`机制，即先写日志再写数据；
+- `InnoDB` 使用这种方式在进行故障恢复时，会将 `redo log`中的日志重做一遍，也就是将系统中未提交的事务重新执行；
+- 默认情况下，`redo log`记录在`ib_logfile0` 和 `ib_logfile1`两个文件，分别用`write pos` 记录写入位置；
+- 用`checkpoint`记录整个系统当前日志已经同步的位置，`checkpoint`保证了未提交的事务重新执行。
+
+##### `undo log` 的使用场景
+
+- `undo log`是事务原子性的保证，主要作用是回滚和多版本控制(`MVCC`)
+- `undo log`主要记录了数据的逻辑变化，比如：一条`INSERT`语句，对应一条`DELETE`的`undo log`；
+- 如果用户执行的事务或语句由于某种原因失败了，可以利用这些`undo`信息将数据回滚到修改前的数据状态；
+- `MVCC`也是通过`undo log`来保证快照读的逻辑。
+
+##### 拓展：`binlog`相关
+
+- 查询 `binlog`日志的两种方式
+  - 原因：`binlog`日志是二进制格式，无法直接进行查看
+  - `mysqlbinlog`:`/usr/bin/mysqlbinlog mysql-bin.000009`
+  - 命令解析 `SHOW BINLOG EVENTS [IN 'binlog_name']`
+- `MySQL` 通过`sync_binlog`控制刷盘时机
+  - 0(系统自行判断)，1(每次`commit`都会写入)，`N`(每`N`次事务才写入)
+  - `MySQL 5.7.7`后默认设置为`1`
+- `binlog` 日志格式
+  - `STATMENT` ：基于 `SQL` 语句的复制，每一条会修改数据的 `SQL` 语句会记录到 `binlog` 中
+    - 优点：不需要记录每一行的变化，减少了日志量
+    - 缺点： 在某些情况下会导致主从数据不一致
+  - `ROW`：基于行的复制，仅需要记录哪条数据被修改了
+    - 优点： 不会出现某些特定情况下无法被正确复制的问题
+    - 缺点： 会产生大量的日志，尤其是 alter table 的时候会让日志暴涨
+  - `MIXED`：混合模式
+
+##### 拓展：`redo log` 和 `binlog` 的区别
+
+- `redo log` 是 `InnoDB` 引擎特有；`binlog`是`MySQL`的`Server`层实现的，所有引擎都可以用
+- `redo log` 是物理日志，记录的是"在某个数据页上做了什么修改"; `binlog` 是逻辑日志，记录的是这个语句的原始逻辑，比如："给`ID=2`的行`c`字段加1"
+- `redo log` 是循环写的，空间固定会用完；`binlog`是可以追加写的，当文件大小到达`max_binlog_size`值后，会生成新的文件来保存日志
+- `binlog`适用于崩溃恢复(`crash-safe`), `binlog`日志适用于主从复制和数据恢复
+
+
+##### 拓展：`redo log` 和`undo log`的区别
+
+- `redo log` 和 `undo log` 都是用来恢复日志，但不是逆向过程
+- `redo log`是物理日志，记录的是数据页的物理修改；`undo log`是逻辑日志，用来回滚行记录到某个版本，根据每行记录进行记录
+- `redo log` 是读顺序写的， `undo log`是随机读写
+
+##### 拓展：主从复制过程
+
+- `Master`将数据改变记录到二进制日志(`binary log`)中；
+- `Slave` 上面的 `IO` 进程连接上 `Master`，并请求从指定日志文件的位置(或从最开始的日志)之后的日志内容
+- `Master`接收到来自`Slave`的`IO`进程的请求后，负责复制的`IO`进程会根据请求信息读取日志指定位置之后的日志信息，返回给`Slave`的`IO`进程；
+  - 返回信息中除了日志所包含的信息外，还包含本次返回的信息已经到 `Master` 端的 `binlog`文件名称以及`binlog`的位置
+- `Salve`的`IO`进程接收到信息后
+  - 将接收到的日志内容一次添加到 `Savle`端的 `relay-log`文件的最末端，
+  - 并将读取到的`Master`端的`bin-log`的文件名和位置记录到`master-info`文件中，以便下一次读取时能够清楚的告诉`Master`从某个`binlog`的哪个位置开始往后的日志内容、
+- `Slave`的`SQL`进程检测到`relay-log`中新增了内容后，会马上解析`relay-log`的内容，成为在`Master`端真实执行时的那些可执行内容，并在自身执行。
+
+##### 拓展：数据恢复
+
+##### 拓展：正常运行中的实例，数据写入的最终落盘，是从`redo log`更新过来的吗？
+
+- `redo log`并没有记录数据页的完整数据，所以它并没有能力自己去更新磁盘数据页，也就是不存在：数据最终落盘，是由`redo log`更新过去的情况；
+- 如果是正常运行的实例
+  - 数据页被修改后，跟磁盘的数据页不一致，称为脏页；
+  - 最终数据落盘，就是把内存中的数据页写盘；
+- 在崩溃恢复场景中
+  - `InnoDB` 如果判断一个数据页可能在崩溃的时候丢失了更新，就会将它读到内存，然后让`redo log`更新内存内容
+  - 更新完成后，内存页变成脏页，脏页旧回到上面的情况
+  
+##### 拓展：什么时候写`redo log buffer`，什么时候写`redo log file`
+
+- `redo log buffer` 就是一块内存，用来先存`redo`日志的，也就是说，在数据的内存被修改了(执行写入操作)，`redo log buffer` 也写入日志；
+- `redo log file` 是在执行 `commit`语句是做的
+
 ------
 
 ### 简述 `MySQL MVCC` 的实现原理
