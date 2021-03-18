@@ -124,3 +124,42 @@ func quickSort(nums []int, start, end int) {
 - 这样就可以划出每一秒在线人数的曲线图
 
 ------
+
+### 如何通过一个不均匀的硬币得到公平的结果？
+
+- 这题的解法和：利用`Rand7()`实现`Rand10()` 类似
+
+```go
+// 连续抛两次硬币，得到的 (0,1)和(1,0)概率是相等的
+// 则如果两次结果相同，重新抛，两次结果不同则说明公平
+
+// 不均匀的硬币
+func coin() int {
+	// [0,3][4,9], 4:6
+	if rand.Intn(10) > 4 {
+		return 0
+	} else {
+		return 1
+	}
+}
+
+// 两次结果不同，则表示概率相同，返回第一次抛的值
+func coinResult() int {
+	for {
+		a := coin()
+		if coin() != a {
+			return a
+		}
+	}
+}
+
+func main()  {
+	rand.Seed(time.Now().UnixNano())
+	count := []int{0,0}
+	for i := 0; i < 100000; i++ {
+		count[coinResult()]++
+	}
+	fmt.Println(count)
+}
+
+```
