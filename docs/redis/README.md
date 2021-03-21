@@ -3,14 +3,40 @@
 
 ### `Redis` 有几种数据结构？`Zset` 是如何实现的？
 
-##### 几种数据结构
+#### 几种数据结构
 
 - `Redis`基本的数据结构，有5种，分别是：`String`(字符串)、`Hash`(哈希)、`List`(列表)、`Set`(集合)、`Zset`(有序集合)
-- `Redis`常见类型的底层数据结构有8种，分别是：`int、embstr、raw、hashtable、ziplist、quicklist、intset、skipllist`
+- `Redis`常见类型的底层数据结构有8种，分别是：`int、embstr、raw、hashtable、ziplist、quicklist、intset、skiplist`
 
-##### `Zset` 是如何实现的？
+#### `Zset` 是如何实现的？
 
-- TODO 
+- `Zset`的底层数据结构有两种，分别是`ziplist`(压缩列表)和`skiplist`(跳表)
+- `Zset`使用`ziplist`满足两个条件，否则使用`skiplist`
+  - 所有元素的长度小于64字节(`server.zset_max_ziplist_value`配置)
+  - 元素的个数小于128个(`server.zset_max_ziplist_entries`配置)
+
+##### 当`ziplist`作为`zset`的底层存储结构
+
+- 每个`zset`元素使用紧挨在一起的压缩列表结点保存，第一个结点保存`member`，第二个元素保存`score`，分值小的靠近表头
+- `zadd`过程：
+  - 通过顺序查找，`member`是否存在，如果存在，则先删除
+  - 如果不存在，则向`ziplist`添加两次插入，插入后需要考虑元素的长度或个数是否超过限制，如果超出，则将底层结构转换为`skiplist`
+
+##### 当`skiplist`作为`zset`的底层存储结构时
+
+- 此时`zset`的底层实现是跳表结合哈希表。
+  - 每个跳跃结点保存一个`Zset` 元素，并按分值从小到大排序，同时保存`member`和`score`的值
+  - 字典的每个结点保存一个`Zset` 的元素，`member`为`key`，`score`为`value` 
+  - `member`和`score`值是共享的，跳跃表和字典通过指针指向同一地址，不会浪费内存
+- `zadd`的查找过程：
+  - 先通过哈希表查找`member`是否存在，此操作时间复杂度为`O(1)`，如果存在则需要查找结点在跳跃表的位置；
+  - 跳跃表是有序存储，从头结点的最高层开始遍历查找，如果没有找到目标结点，则从最后一个比目标结点`score`小的结点开始降一层再遍历，直到找到目标结点；
+  - 然后将哈希表键值对和`skiplist`结点数据删除
+  - 然后进行插入操作
+- `zadd`的插入过程
+  - 通过`score`查找到新增结点应该插入的位置；
+  - 随机生成结点的层数，使用该层数新建一个跳跃结点；
+  - 更新新增结点所在位置的前后结点指针，将新增结点插入到`skiplist`
 
 ------
 
@@ -23,34 +49,46 @@
 ##### `String`(字符串)
 
 - `Redis`字符串叫做`SDS`(简单动态字符串)，其结构是一个带有长度和容量信息的字节数组，其对应的底层数据结构是：`int`(整数)、`embstr`编码简单动态字符串、`raw`简单动态字符串
-- 以`int`为底层存储结构的条件是：保存的字符串是否可以转换为一个整数，且该整数的取值范围是8个字节的长整型(`2^64`)
-- 当保存的字符串长度`<=44`时，则使用`embstr`保存，否则使用`raw`保存；
+- 使用`int`存储的条件是，`value`长度小于`20`并且可以解析为整数；
+- 使用`embstr`编码简单字符串存储的条件是，`value` 的长度`<=44`，该对象会使用`malloc` 方法一次分配内存，将`redisObject`对象头和`SDS`对象连续存在一起
+- 不满足上述条件，则用`raw`简单动态字符串存储，需要两次`malloc`分配内存，`redisObject`对象头和`SDS`对象在内存地址上一般是不连续的
 
 ##### `Hash`(哈希)
 
-- 当哈希的保存的 `key`和`value`的的长度小于64，且键值对个数小于512个，则使用 `ziplist`(压缩列表)保存数据，否则使用`hashtable`
-- `ziplist`是一块连续的内存空间，元素之间紧挨着存储，没有任何冗余空隙；`ziplist`支持双向遍历；
+- `Hash`的底层数据结构有两种，分别为`ziplist`(压缩列表)和`hashtable`(哈希表)
+- 哈希对象使用`ziplist`存储数据需要同时满足两个条件，否则使用`hashtable`
+  - 所有键值对的键和值的字符串长度小于64字节(`server.hash_max_ziplist_value`配置)
+  - 键值对数量小于512个(`server.hash_max_ziplist_entries`)
+- 压缩列表是一块连续的内存空间，实现类似数组，`key-value`键值对以紧密相连的方式存入压缩链表，没有任何冗余空隙；压缩链表支持双向遍历；
 - `hashtable`通过分桶的方式解决`hash`冲突，第一维是数组，第二维是链表。数组中存储的是第二维链表的第一个元素的指针
-- 每个哈希底层包含两个`hashtable`，通常情况下只有一个`hashtable`是有值的，在`hash`扩容缩容时，需要分配新的`hashtable`用于渐进式`rehash`
+  - 每个哈希底层包含两个`hashtable`，通常情况下只有一个`hashtable`是有值的
+  - 在`hash`扩容缩容时，需要分配新的`hashtable`用于渐进式`rehash`
 
-### `List`(链表)
+##### `List`(链表)
 
-- `Redis`早期版本存储`List`列表的数据结构时使用`ziplist`(压缩列表)和`linkedlist`(普通的双向链表)；
-- 考虑到链表要附加空间相对太高(`prev`和`next`指针占16字节)，使用`quicklist`(快速列表)代替`linkedlist`；
-- `quicklist`是`ziplist`和`linkedlist`的混合体，多个`ziplist`之间使用双指针串联起来，每个`ziplist`的长度为`8kb`；
+- 列表对象的底层数据结构有过3种，分别是：`linkedlist`(双向链表)、`ziplist`(压缩列表)、`quicklist`(快速列表)
+- `linkedlist`(双向链表)底层采用双端链表实现，需要附加空间相对太高(`prev`和`next`指针占16字节)，在`3.2`版本以后就废弃了
+- `quicklist`是底层采用双端链表结构，不过每个链表结点都保存一个``ziplist``，每个`ziplist`的长度为`8kb`；
 
-#### `Set`(集合)
+##### `Set`(集合)
 
-- 当集合的元素都是整数，且元素的个数不超过512个是，使用`intset`(整数集合)存储，否则使用`hashtable`
+- 集合对象的底层数据结构有两种：`intset`(整数集合)和`hashtable`(哈希表)
+- 集合使用`intset`需要满足两个条件，否则使用`hashtable`
+  - 所有元素都是整数
+  - 集合中的元素个数不超过512个(`server.set_max_intset_entries`配置)
 - `intset`用于保存整数数值的集合抽象数据结构，不会出现重复元素，底层实现为数组；
-- `Set`底层的`hashtable`的所有`value`都是`NULL`；
+- `hashtable`的所有`value`都是`NULL`；
 
-#### `Zset`(有序集合)
+##### `Zset`(有序集合)
 
-- 当`Zset`的所有数据小于64字节,且元素个数不超过128个时，使用`ziplist`进行存储， 否则使用`skiplist`(跳表)
-- 跳表是有`zskiplist`和`zskiplistNode`组成，`zskiplist`用于保存跳表信息(表头、表尾、长度等)；
-- `zskiplistNode`用于表示跳跃结点，每个跳跃表的层高都是`1-32`的随机数；
-- 同一个跳表中，多个结点可以包含相同的分值，但是每个结点的成员对象必须是唯一的，结点按照分值大小排序，如果分值相同，则按照成员对象的大小排序
+- `Zset`的底层数据结构有两种：`ziplist`(压缩列表)和`skiplist`(跳表)
+- `Zset`使用`ziplist`满足两个条件，否则使用`skiplist`
+  - 所有元素的长度小于64字节(`server.zset_max_ziplist_value`配置)
+  - 元素的个数小于128个(`server.zset_max_ziplist_entries`配置)
+- 当`ziplist`作为`zset`的底层数据结构时，通过成员-分数方式存储，分值小的靠近表头
+- 当`skiplist`作为`zset`的底层数据结构时，会结合`hashtable`，便于判断`member`是否存在
+  - 每个条约结点都保存一个`zset`元素，并按分值从小到大排序，如果分值相同，则按照成员对象的大小排序
+  - 哈希表的每个结点保存一个`Zset` 的元素，`member`为`key`，`score`为`value` 
 
 
 ##### 拓展：`embstr`为什么最大存储`44`个字符
@@ -68,7 +106,10 @@
 
 #### 拓展：渐进式`rehash`
 
-- TODO
+- 为了解决一次性`rehash`会造成线程卡顿问题，`Redis`渐进式`rehash`
+- 它会同时保留旧数组和新数组，然后在定时任务以及后续对`hash`的指令操作中渐渐地将旧数组中挂接的元素迁移到新数组上。
+- 这意味着要操作处于`rehash`中的字典，需要同时访问新旧两个数组。
+- 如果在旧数组找不到元素，还需要去新数组下面去寻找
 
 ------
 
@@ -231,6 +272,8 @@
 
 ### `Redis` 序列化有哪些方式？
 
+TODO
+
 ------
 
 ### 简述 `Redis` 的过期机制和内存淘汰策略
@@ -267,6 +310,8 @@
 ------
 
 ### 假设 `Redis` 的 `master` 节点宕机了，你会怎么进行数据恢复？
+
+TODO
 
 ------
 
@@ -373,11 +418,15 @@
 
 ------
 
-### 简述 Redis 的哨兵机制
+### 简述 `Redis` 的哨兵机制
+
+
 
 ------
 
-### Redis 中，sentinel 和 cluster 的区别和适用场景是什么？
+### `Redis` 中，`sentinel` 和 `cluster` 的区别和适用场景是什么？
+
+TODO
 
 ------
 
