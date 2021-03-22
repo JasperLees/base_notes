@@ -3,7 +3,7 @@
 
 ### 简述 `Go` 调度流程 7
 
-### `GMP` 及该模型好处 9
+### `GMP`模型好处 9
 
 ### 协程和进程和线程的区别？2
 
@@ -17,7 +17,12 @@
 
 ### 简述什么是`goroutine`泄漏？1
 
-### `goroutinue` 什么时候会被挂起 1
+### `Goroutine` 什么时候会被挂起(1)
+
+- 在向无缓冲且没有接收者的`Channel`，或缓冲区已满的`Channel`写入数据时，`Goroutine`会挂起
+- 在向无缓冲且发送者的`Channel`，或缓冲区已空的`Channel`读取数据时，`Goroutine`会挂起
+TODO
+
 
 # `GC`
 
