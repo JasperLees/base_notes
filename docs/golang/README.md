@@ -111,7 +111,44 @@ func main() {
 
 ### 有缓存的管道和没有缓存的管道区别 3
 
-### `channel` 怎么实现线程安全 2
+### `channel` 怎么实现线程安全
+
+```go
+type hchan struct {
+	buf      unsafe.Pointer // 保存数队列
+	sendx    uint           // 发送数据位置
+	recvx    uint           // 接收数据位置
+	recvq    waitq          // 等待接收的Goroutine队列
+	sendq    waitq          // 等待写入的Goroutine队列
+	lock mutex
+}
+```
+
+- `Channel`在运行时的内部表示是`runtime.hchan`，该结构体中包含了用于保护成员变量的互斥锁，从某种程度上说，`Channel`是一个用于同步和通信的有锁队列；
+- 同时`runtime.hchan`有一个循环队列(`buf`)、读取和写入队列的标记位`sendx`(`send index`)和`recv`(`receive index`)，用于数据的循环写入和顺序写入；
+- `runtime.hchan`有发送队列(`sendq`)和接收队列(`recvx`)，使得数据的发送和接收的先进先出(`FIFO`)，提供了安全性；
+
+##### `Channel`收发数据
+
+- 当读`Gorotine G1`向`Channel`发送数据时，首先需要获取锁，拿到锁，发送数据可能会发生下面3种情况：
+  - 1-如果当前`Channel`的`recvq`上存在已经被阻塞的`Goroutine`，将数据发送给队列的第一个接收者,并将其设置下一个运行的`Goroutine`；
+  - 2-如果`Channel`存在缓冲区且有空闲的容量，则会直接将数据存储到缓冲区，`sendx`所在的位置上；
+  - 3-如果不满足上面的两种情况，，则会挂起当前`Goroutine`，并将它加入`sendq`队列末尾；
+- 处理完上述三种情况后，释放锁；
+
+- 当`G2`读取`Channel`的数据时，先获取锁，拿到锁后，接收数据可能会发送下面4中种情况：
+  - 1-如果`Channel`为`nil`，那么会直接调用`runtime.gopark`挂起当前`Goroutine`；
+  - 2-如果`Channel`已经关闭并且缓冲区没有任何数据，会直接返回；
+  - 3-如果`Channel`的缓冲区中包含数据，那么直接读取`recvx`索引对应的数据；
+    - 接收完后判断`sendq`是否有挂起的`Goroutine`；
+    - 如果有则将`sendq`队列中第一个`Goroutine`的数据拷贝到缓冲区；
+  - 4-如果当前缓冲区没有数据，则会挂起当前`Goroutine`，并将它加入`recvq`队列末尾
+- 处理完上面情况后，释放锁。
+
+### `make`和`new` 的区别
+
+- `make`的作用是创建切片、哈希表和`Channel`等内置的数据结构
+- `new`的作用是为类型申请一块内存空间，并返回指向这块内存的指针
 
 # 其他
 
@@ -119,7 +156,4 @@ func main() {
 
 ### 平时写`go`，怎么调试的？有做过`test`和`benchmark`吗？1
 
-### `make`和`new` 的区别
 
-- `make`的作用是创建切片、哈希表和`Channel`等内置的数据结构
-- `new`的作用是为类型申请一块内存空间，并返回指向这块内存的指针
