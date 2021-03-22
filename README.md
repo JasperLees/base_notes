@@ -12,4 +12,4 @@
 
 #### [程序设计](./docs/design/README.md)
 
-#### [`Golang`](./docs/glang/README/md)
+#### [`Golang`](./docs/golang/README/md)
