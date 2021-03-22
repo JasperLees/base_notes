@@ -17,7 +17,7 @@
 
 ### 简述什么是`goroutine`泄漏？1
 
-### `groutinue` 什么时候会被挂起 1
+### `goroutinue` 什么时候会被挂起 1
 
 # `GC`
 
