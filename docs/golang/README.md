@@ -94,6 +94,14 @@
 
 ### `Go` 的协程可以不可以自己主动让出 `CPU` 2
 
+- 可以
+- 如果`Gorotinue`在处理`channel`读写条件不满足，就会调用`runtime.gopark` 将自己挂起，让出`CPU`；
+
+##### `runtime.gopark`主要做的事
+
+- 解除当前`Goroutine`的`MP`绑定关系，将当前`Goroutine`状态切换为等待状态；
+- 调用一次`runtime.schedule()`函数，在`P`发起一轮新的调度
+
 ------
 
 ### 简述 `Go` 协程通信方式有哪些？2
@@ -110,9 +118,11 @@
 
 ### `Goroutine` 什么时候会被挂起(1)
 
-- 在向无缓冲且没有接收者的`Channel`，或缓冲区已满的`Channel`写入数据时，`Goroutine`会挂起
-- 在向无缓冲且发送者的`Channel`，或缓冲区已空的`Channel`读取数据时，`Goroutine`会挂起
-- 启动`GC`瞬间(`STW`)
+- `channel`读写条件不满足 
+  - 在向无缓冲且没有接收者的`Channel`，或缓冲区已满的`Channel`写入数据时，`Goroutine`会挂起
+  - 在向无缓冲且发送者的`Channel`，或缓冲区已空的`Channel`读取数据时，`Goroutine`会挂起
+- 在触发垃圾回收的栈扫描时会挂起`Goroutine`
+- 
 TODO
 
 ------
