@@ -48,43 +48,6 @@
 
 ------
 
-### 快速排序
-
-```go
-func main() {
-	nums := []int{5, 2, 7, 4, 6, 3, 8, 1, 0, 9}
-	quickSort(nums, 0, len(nums)-1)
-	fmt.Println(nums)
-}
-
-func quickSort(nums []int, start, end int) {
-	if start >= end {
-		return
-	}
-	target := nums[end] // 去start 先找右边，取end先找左边
-	left, right := start, end
-	for left < right {
-		// 找到从前往后的第一个比 target 大的 index
-		for left < right && nums[left] <= target {
-			left++
-		}
-		// 找到从后往前的第一个比 target 小的 index
-		for left < right && nums[right] >= target {
-			right--
-		}
-		// 交互
-		nums[left], nums[right] = nums[right], nums[left]
-	}
-	// 找到target最终放的位置，交互target(end位) 和 nums[left]
-	nums[end], nums[left] = nums[left], target
-	// 递归排序 target 左右两边的数组
-	quickSort(nums, start, left-1)
-	quickSort(nums, left+1, end)
-}
-```
-
-------
-
 ### 10亿个数中如何高效地找到最大的一个数以及最大的第 `K` 个数
 
 - 方法一：快速排序，取 `topk`
