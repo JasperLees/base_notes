@@ -542,5 +542,5 @@ type hchan struct {
 
 - `Golang`的开发者提供了将一个函数的参数设置为可选的功能，也就是说我们可以选择参数中的某几个
 - 并且可以按任意顺序传入参数
-- [代码](./docs/golang/OptionFunc.go)
+- [代码](./OptionFunc.go)
 
