@@ -1,13 +1,39 @@
+## 时间复杂度
+
+|            |   Best    |  Average  |   Worst   | Worst(Space) | 稳定性 |
+| ---------- | :-------: | :-------: | :-------: | :----------: | :----: |
+| QuickSort  | O(n logn) | O(n logn) |  O(n^2)   |   O(logn)    | 不稳定 |
+| MergeSort  | O(n log)  | O(n log)  | O(n log)  |     O(n)     |  稳定  |
+| HeapSort   | O(n logn) | O(n logn) | O(n logn) |     O(1)     | 不稳定 |
+| BubbleSort |   O(n)    |  O(n^2)   |  O(n^2)   |     O(1)     |  稳定  |
+| SelectSort |  O(n^2)   |  O(n^2)   |  O(n^2)   |     O(1)     | 不稳定 |
+| CountSort  |  O(n+k)   |  O(n+k)   |  O(n+k)   |     O(k)     |  稳定  |
+| BucketSort |  O(n+k)   |  O(n+k)   |  O(n^2)   |     O(n)     |  稳定  |
+
+##### 稳定性说明
+
+- 假如 `a`原本在`b` 前面，且`a == b`
+- 稳定：排序后`a`仍然在`b`前面
+- 不稳定：排序后`a`可以出现在`b`后面
+- 选择排序的不稳定原因：其根本逻辑，是选择后面的一个最小数和当前数交换
+  - 如果当前元素比一个元素小，且该小元素在和当前相等的元素后面，交换后稳定性被破坏
+  -  数组`[A1, A2, B1](A1=A2>B1)`交换后变成 `[B1, A2, A1]`，破坏稳定性
+
+## 排序算法
+
 #### 快速排序
 
 ##### 解题思路
 
-- 1：以最后一个结点为`target`;
-- 2：从左边开始比较，往右走，到第一个比它大的数`numsleft]`
-- 3：再从右边开始比较，往左走，找到第一个比他小的数`numsright]`
-- 4：交换左边 `nums[left]、nums[right]`;
-- 5: 重复2、3、4步，`left`和`right`重合，这是确定`target`在数组的最终位置；
-- 6：分别将`target`左边数组和右边数组，递归去重复1~5步，最终获得排序
+- 1: 选择目标(通常最后一个结点)
+- 2: 通过从前往后比较，找到第一个比`target`大的元素；从后往前比较，找到第一个比`target`小的元素
+- 3：然后交换两个元素，重复第2步，直到找到target在数组的最终位置(left)
+- 4：用`(start, left-1)`和`(left+1, end)`去递归，重复1、2、3步直到数组有序
+
+##### 时空复杂度
+
+- `Time`：`O(nlogn)`[最坏：`O(n^2)`，平均每次遍历+移动的元素都是`N`]
+- `Space`：`O(log n)`递归栈
 
 ```go
 func quickSort(nums []int, start, end int) {
@@ -25,7 +51,7 @@ func quickSort(nums []int, start, end int) {
 		for left < right && nums[right] >= target {
 			right--
 		}
-		// 交互
+		// 交换
 		nums[left], nums[right] = nums[right], nums[left]
 	}
 	// 找到target最终放的位置，交互target(end位) 和 nums[left]
@@ -42,6 +68,7 @@ func main() {
 }
 ```
 
+------
 
 #### 归并排序
 
@@ -49,47 +76,54 @@ func main() {
 
 - 1: 先将数据从中间位置开始拆分成`n`个数组
 - 2: 递归的将数组两两合并
-  - 2-1：因为单个数组是有序的，比较两个数组首个元素，小的先`push`，大的后`push`
-  - 2-2: 将 `left` 或 `right` 剩余部分追加到后面
- 
+    - 2-1：因为单个数组是有序的，比较两个数组首个元素，小的先`push`，大的后`push`
+    - 2-2: 将 `left` 或 `right` 剩余部分追加到后面
+
 ##### 类似题型
 
 - 两个有序链表合并
 
+##### 时空复杂度
+
+- `Time`：`O(n logn)`
+- `Space`：`O(n)`
+
 ```go
-func mergeSort(arr []int) []int {
-	if len(arr) < 2 {
-		return arr
+func mergeSort(nums []int) []int {
+	if len(nums) < 2 {
+		return nums
 	}
-	mid := len(arr) / 2
-	return merge(mergeSort(arr[:mid]), mergeSort(arr[mid:]))
+	mid := len(nums) / 2
+	return merge(mergeSort(nums[mid:]), mergeSort(nums[:mid]))
 }
 
 func merge(left, right []int) []int {
-	arr := make([]int, 0)
+	nums := []int{}
 	for len(left) > 0 && len(right) > 0 {
 		if left[0] <= right[0] {
-			arr = append(arr, left[0])
+			nums = append(nums, left[0])
 			left = left[1:]
 		} else {
-			arr = append(arr, right[0])
+			nums = append(nums, right[0])
 			right = right[1:]
 		}
 	}
 	if len(left) > 0 {
-		arr = append(arr, left...)
+		nums = append(nums, left...)
 	}
 	if len(right) > 0 {
-		arr = append(arr, right...)
+		nums = append(nums, right...)
 	}
-	return arr
+	return nums
 }
 
 func main() {
-	arr := []int{6, 3, 4, 7, 1, 5, 9, 8, 0}
-	fmt.Println(mergeSort(arr))
+	nums := []int{5, 2, 7, 4, 6, 3, 8, 1, 0, 9}
+	fmt.Println(mergeSort(nums))
 }
 ```
+
+------
 
 #### 堆排序
 
@@ -154,6 +188,8 @@ func main() {
 }
 ```
 
+------
+
 #### 冒泡排序
 
 ##### 解题思路
@@ -170,22 +206,23 @@ func main() {
 
 ```go
 func bubbleSort(nums []int) {
+	var flag bool
 	for i := 0; i < len(nums); i++ {
+		flag = false
 		for j := 0; j < len(nums)-i-1; j++ {
 			if nums[j] > nums[j+1] {
 				nums[j], nums[j+1] = nums[j+1], nums[j]
+				flag = true
 			}
 		}
-		fmt.Println(nums)
+		if !flag {
+			break
+		}
 	}
 }
-
-func main() {
-	nums := []int{4, 9, 0, 5, 6, 3, 7, 2, 8, 1}
-	bubbleSort(nums)
-	fmt.Println(nums)
-}
 ```
+
+------
 
 #### 选择排序
 
@@ -218,6 +255,8 @@ func main() {
 	fmt.Println(nums)
 }
 ```
+
+------
 
 #### 计数排序
 
@@ -284,6 +323,8 @@ func main() {
 }
 ```
 
+------
+
 #### 桶排序
 
 ##### 使用场景
@@ -292,17 +333,18 @@ func main() {
 
 ##### 解题思路
 
+- 1.获取数组的`max`和`min`，每个桶的区间 = 两者差 / 桶的个数(数组长度)
+- 2.初始化桶，二位数组
+- 3.遍历原始数组，将每个元素放入桶中
+- 4.对每个桶内部进行排序
+- 5.将元素数据放回数组
+
 ##### 时空复杂度
 
+- `Time:O(n+k)`
+- `Space：O(n)`，所有桶的元素`==len(nums)`
+
 ```go
-// 解题思路：
-//		1.获取数组的max和min，每个桶的区间 = 两者差 / 桶的个数
-//		2. 初始化桶，桶的个数和数组长度一致
-// 		3. 遍历原始数组，将每个元素放入桶中
-//		4. 对每个桶内部进行排序
-//		5. 将元素数据放回数组
-// 时空复杂度
-// Time:O(n+k), Space：O(n)，所有桶的元素==len(nums)
 func bucketSort(nums []float64) []float64 {
 	if len(nums) < 2 {
 		return nums
@@ -350,3 +392,11 @@ func main() {
 	fmt.Println(nums)
 }
 ```
+
+------
+
+#### 基数排序
+
+
+
+## `Go`的排序
