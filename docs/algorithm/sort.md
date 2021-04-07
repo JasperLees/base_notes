@@ -295,11 +295,19 @@ func main() {
 ##### 时空复杂度
 
 ```go
+// 解题思路：
+//		1.获取数组的max和min，每个桶的区间 = 两者差 / 桶的个数
+//		2. 初始化桶，桶的个数和数组长度一致
+// 		3. 遍历原始数组，将每个元素放入桶中
+//		4. 对每个桶内部进行排序
+//		5. 将元素数据放回数组
+// 时空复杂度
+// Time:O(n+k), Space：O(n)，所有桶的元素==len(nums)
 func bucketSort(nums []float64) []float64 {
 	if len(nums) < 2 {
 		return nums
 	}
-	// 1.获取数组的max和min，计算出统计数组长度k
+	// 获取 max 和 min Time:O(n)
 	max, min := nums[0], nums[0]
 	for i := 1; i < len(nums); i++ {
 		if nums[i] > max {
@@ -309,22 +317,26 @@ func bucketSort(nums []float64) []float64 {
 			min = nums[i]
 		}
 	}
-	// 2. 初始化桶
-	bucketNum := len(nums)
-	bucketArr := make([][]float64, bucketNum)
-	for i := 0; i < bucketNum; i++ {
-		bucketArr[i] = make([]float64, 0)
-	}
-	// 3. 遍历原始数组，将每个元素放入桶中
+	diff := (max - min) / float64(len(nums)) // 桶区间
+
+	// 初始化桶 Space:O(n)
+	bucketArr := make([][]float64, len(nums))
+
+	// 数据入桶 Time:O(n)
+	var idx int
 	for i := 0; i < len(nums); i++ {
-		num := (nums[i]-min) * float64(bucketNum - 1) / (max-min)
-		bucketArr[int(num)] = append(bucketArr[int(num)], nums[i])
+		if idx =int(nums[i]/diff) - 1; idx < 0 {
+			idx = 0
+		}
+		bucketArr[idx] = append(bucketArr[idx], nums[i])
 	}
-	// 4. 对每个桶内部进行排序
+
+	// 单个桶排序 Time： n/k * log(n/k) * k => nlog(n/k)
 	for i := 0; i < len(bucketArr); i++ {
 		sort.Float64s(bucketArr[i])
 	}
-	// 5. 输出元素
+
+	// 输出排序 Time:O(n)
 	results := make([]float64, 0)
 	for i := 0; i < len(bucketArr); i++ {
 		results = append(results, bucketArr[i]...)
