@@ -9,6 +9,7 @@
 | SelectSort |  O(n^2)   |  O(n^2)   |  O(n^2)   |     O(1)     | 不稳定 |
 | CountSort  |  O(n+k)   |  O(n+k)   |  O(n+k)   |     O(k)     |  稳定  |
 | BucketSort |  O(n+k)   |  O(n+k)   |  O(n^2)   |     O(n)     |  稳定  |
+| RadixSort  |  O(nk)    |  O(nk)    |  O(nk)    |    O(n+lk)   |  稳定  |
 
 ##### 稳定性说明
 
@@ -397,6 +398,52 @@ func main() {
 
 #### 基数排序
 
+##### 适用场景
 
+- 数值排序：最大最小值间隔比较大，取最大值位数为排序的次数，最小值前面补零
+- 字符串排序：取最长的字符串的长度为排序次数，短的字符串在前面补零
 
-## `Go`的排序
+##### 解题思路：
+- 1:获取最大的值，以确定循环的次数
+- 2:创建10个桶(有负数创建20个，字符串创建128个,`ASCII`码的取值范围)
+- 3:从个位开始，以个位为`idx`，放入对应的桶，然后将所有桶按顺序放回 `nums`
+- 4:同样使用十位、百位进行相同的操作，直到最高位为止，得到有序数组
+
+##### 时空复杂度
+
+- `Time:O(kn)` 
+- `Space:O(n)`
+
+```go
+func radixSort(nums []int) []int {
+	if len(nums) < 2 {
+		return nums
+	}
+	// 排序的次数由最大值的位数确定，获取最大值 Time:O(n)
+	max := nums[0]
+	for i := 1; i < len(nums); i++ {
+		if nums[i] > max {
+			max = nums[i]
+		}
+	}
+	// 对每个位数排序，从个位开始 Time:O(k*n) Space:O(n+k), k 表示一位数组个数，n表示元素个数
+	for i := 1; max/i > 0; i = i*10  {
+		bucketArr := make([][]int, 10)
+		for j := 0; j < len(nums); j++ {
+			idx := (nums[j] / i) % 10
+			bucketArr[idx] = append(bucketArr[idx], nums[j])
+		}
+		nums = make([]int, 0)
+		for j := 0; j < len(bucketArr); j++ {
+			nums = append(nums, bucketArr[j]...)
+		}
+	}
+	return nums
+}
+
+func main()  {
+	nums := []int{40, 2, 4, 5, 15, 201, 304, 8999, 800, 7, 33}
+	nums = radixSort(nums)
+	fmt.Println(nums)
+}
+```
