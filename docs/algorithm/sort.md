@@ -10,6 +10,8 @@
 | CountSort  |  O(n+k)   |  O(n+k)   |  O(n+k)   |     O(k)     |  稳定  |
 | BucketSort |  O(n+k)   |  O(n+k)   |  O(n^2)   |     O(n)     |  稳定  |
 | RadixSort  |  O(nk)    |  O(nk)    |  O(nk)    |    O(n+k)    |  稳定  |
+| InsertSort |  O(n)     |  O(n^2)   |  O(n^2)   |    O(1)      |  稳定  |
+| ShellSort  |  O(nlogn) |  O(n(logn)^2)   |  O(n(logn)^2)   |    O(1)      |  不稳定  |
 
 ##### 稳定性说明
 
@@ -453,3 +455,77 @@ func main()  {
 - 计数排序：单个桶保存单一数值(可能相同)
 - 桶排序：  单个桶保存一定范文的数值
 - 基数排序：根据数值的每位数字来分配桶
+
+------
+
+#### 插入排序
+
+##### 解题思路
+
+- 1:前半部分是有序的，后半部分是无需的
+- 2:`nums[i]` 从后往前比较 [0~i-1]之间的数，找到第一个比他小的数值，插入它的后面
+
+##### 时空复杂度
+
+- `Time:O(n^2)`，最好是 `O(n)`
+- `Space:O(1)`
+
+```go
+func insertSort(nums []int) {
+	for i := 1; i < len(nums); i++ {
+		for j := i; j > 0; j-- {
+			if nums[j] < nums[j-1] {
+				nums[j], nums[j-1] = nums[j-1], nums[j]
+			} else {
+				break
+			}
+		}
+	}
+}
+
+func main() {
+	nums := []int{4, 9, 0, 5, 6, 3, 7, 2, 8, 1}
+	insertSort(nums)
+	fmt.Println(nums)
+}
+```
+
+------
+
+#### 希尔排序
+
+##### 解题思路
+
+- 1:希尔排序是插入排序的一个优化，普通插入排序增量为1
+- 2:第一次，以增量为 `len(nums)/2` 的一次插入排序
+- 3:第`N`次，以增量为 `len(nums)/(2^N)` 的一次插入排序
+- 4:直到增量为1，完成排序
+
+##### 时空复杂度
+
+- `Time:O(n*(logn)^2)`, 最好能达到`O(nlogn)` 
+- `Space:O(1)`
+
+```go
+func shellSort(nums []int) {
+	for d := len(nums) / 2; d > 0; d /= 2 { // O(logn)
+		for i := 0; i < len(nums); i++ {    // O(n)
+			for j := i - d; j >= 0; j -= d { // O(logn)
+				if nums[j] > nums[j+d] {
+					nums[j], nums[j+d] = nums[j+d], nums[j]
+				} else {
+					break
+				}
+			}
+		}
+	}
+}
+
+func main() {
+	nums := []int{4, 9, 0, 5, 6, 3, 7, 2, 8, 1}
+	shellSort(nums)
+	fmt.Println(nums)
+}
+```
+
+------
