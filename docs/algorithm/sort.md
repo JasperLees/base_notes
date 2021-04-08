@@ -9,7 +9,7 @@
 | SelectSort |  O(n^2)   |  O(n^2)   |  O(n^2)   |     O(1)     | 不稳定 |
 | CountSort  |  O(n+k)   |  O(n+k)   |  O(n+k)   |     O(k)     |  稳定  |
 | BucketSort |  O(n+k)   |  O(n+k)   |  O(n^2)   |     O(n)     |  稳定  |
-| RadixSort  |  O(nk)    |  O(nk)    |  O(nk)    |    O(n+lk)   |  稳定  |
+| RadixSort  |  O(nk)    |  O(nk)    |  O(nk)    |    O(n+k)    |  稳定  |
 
 ##### 稳定性说明
 
@@ -447,3 +447,9 @@ func main()  {
 	fmt.Println(nums)
 }
 ```
+
+##### 计数排序 `VS` 桶排序 `VS` 基数排序
+
+- 计数排序：单个桶保存单一数值(可能相同)
+- 桶排序：  单个桶保存一定范文的数值
+- 基数排序：根据数值的每位数字来分配桶
