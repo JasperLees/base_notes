@@ -7,6 +7,7 @@
 [算法汇总](./docs/algorithm/README.md)
 
   - [排序总结](./docs/algorithm/sort.md)
+  - [快排优化](./docs/algorithm/快排优化.md)
   - [海量数据处理](./docs/algorithm/海量数据处理.md)
   - [智力题](./docs/algorithm/智力题.md)
   - [洗牌算法](./docs/algorithm/shuffle_cards.go)
