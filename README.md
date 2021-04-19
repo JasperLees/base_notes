@@ -11,7 +11,7 @@
   - [海量数据处理](./docs/algorithm/海量数据处理.md)
   - [智力题](./docs/algorithm/智力题.md)
   - [洗牌算法](./docs/algorithm/shuffle_cards.go)
-  - [LRU](./docs/algorithm/LRU.go)
+  - [LRU](./docs/algorithm/LRU.md)
 
 [网络汇总](./docs/network/README.md)
 
