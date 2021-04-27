@@ -645,7 +645,15 @@ SELECT * FROM t WHERE k LIKE '[^abc]d'; /*因为是连续的，可以写成 [a-c
 
 ##### 开启慢查询功能
 
-- `set global show_query_log=1` 或 修改`my.cnf`中的`slow_query_log=1`即可；
+- `set global show_query_log=ON` 开启慢查询，`set global long_query_time=1` 设置慢查询数据，单位秒
+
+```shell
+# 或修改 my.cnf
+slow_query_log = ON            
+slow_query_log_file = /usr/local/mysql/data/slow.log # 日志路径
+long_query_time = 1
+```
+
 - 开启慢查询日志会对`MySQL`的性能造成一定影响，因此在生产环境慎用此功能；
 
 ##### `EXPLAIN`重要字段
