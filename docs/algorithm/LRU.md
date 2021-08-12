@@ -26,18 +26,19 @@ type LRUCache struct {
 func (lc *LRUCache) Set(key string, value interface{})  {
     if node, ok := lc.cache[key]; ok {
         lc.root.MoveToBack(node) // 移动到队尾
-        lc.useBytes = lc.useBytes + len(value) - len(node.Val) // 更新容量 假设len方法计算其容量
+        lc.useBytes -= lc.calcBytes(node.Val)
         node.Val = value // 更新值
     } else { // 如果不存在，队尾插入值，cache保存
         node := &ListNode{Key:key, Val: value}
         lc.cache[key] = node
         lc.root.Append(node)
-        lc.useBytes += len(value)
     }   
+    lc.useBytes += lc.calcBytes(value)
+    // 检查是否超出容量
     lc.checkAndDel()
 }
 
-// 设置后，检查是否超过最大值，超过则山吹队首元素
+// 设置后，检查是否超过最大值，超过则移动至队首元素
 func (lc *LRUCache) checkAndDel()  {
     for lc.maxBytes < lc.useBytes {
         if node := lc.root.Front(); node == nil {
@@ -46,6 +47,12 @@ func (lc *LRUCache) checkAndDel()  {
             lc.Del(node.Key)
         }
     }
+}
+
+// 假设数据为普通的数据类型
+func (lc *LRUCache) calcBytes(value interface{}) int {
+	size := unsafe.SizeOf(vale)
+	return int(size)
 }
 
 // 获取LRU值就是，从map中获取值
@@ -66,6 +73,7 @@ func (lc *LRUCache) Del(key string) bool {
     }
     return false
 }
+
 ```
 
 - 双向链表实现
@@ -83,13 +91,10 @@ func (root *ListNode) MoveToBack(target *ListNode) {
 	if target == root.Prev {
 		return
 	}
-	target.Prev.Next = target.Next
-	target.Next.Prev = target.Prev
-
-	target.Prev = root
-	target.Next = root.Next
-	root.Next = target
-	target.Next.Prev = target
+	// 将target从原位置是否，即删除
+	root.Remove(target)
+	// 将target添加至队尾
+	root.Append(target)
 }
 
 // 增加元素到队尾
@@ -97,10 +102,12 @@ func (root *ListNode) Append(target *ListNode) {
 	if target == root.Prev {
 		return
 	}
-	target.Prev = root
-	target.Next = root.Next
-	root.Next = target
-	target.Next.Prev = target
+	// 处理target Prev
+	root.Prev.Next = target
+	target.Prev = target.Prev
+	// 处理target Next
+	root.Prev = target
+	target.Next = root
 }
 
 // 删除元素
